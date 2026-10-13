@@ -13,6 +13,8 @@ import requests
 BASE = Path(__file__).resolve().parent
 CSV_PATH = BASE / "data" / "fuel.csv"
 OUT_PATH = BASE / "data" / "cities.json"
+# the csv has a few canadian stations, we only serve the US
+CANADA = {"AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"}
 HEADERS = {"User-Agent": "fuelroute-takehome/1.0 (one-time city geocoding)"}
 
 
@@ -49,6 +51,9 @@ def main():
     for city, state in cities:
         key = f"{city}|{state}"
         if key in cache:
+            continue
+        if state in CANADA:
+            cache[key] = None
             continue
         cache[key] = geocode(city, state, session)  # None if nominatim finds nothing
         done += 1
