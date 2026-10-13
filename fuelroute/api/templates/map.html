@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fuel route planner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; }
+  #bar { padding: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: #f3f3f3; }
+  #bar input { padding: 6px; width: 220px; }
+  #summary { padding: 6px 10px; font-size: 14px; }
+  #map { height: calc(100vh - 100px); }
+</style>
+</head>
+<body>
+<div id="bar">
+  <input id="start" placeholder="Start (e.g. New York, NY)" value="New York, NY">
+  <input id="finish" placeholder="Finish (e.g. Los Angeles, CA)" value="Los Angeles, CA">
+  <button id="go">Plan route</button>
+</div>
+<div id="summary"></div>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([39.5, -98.35], 4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '&copy; OpenStreetMap contributors'}).addTo(map);
+let layer = null;
+document.getElementById('go').onclick = async () => {
+  const summary = document.getElementById('summary');
+  summary.textContent = 'Planning...';
+  const res = await fetch('/api/route/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({start: document.getElementById('start').value, finish: document.getElementById('finish').value})
+  });
+  const data = await res.json();
+  if (!res.ok) { summary.textContent = 'Error: ' + data.error; return; }
+  if (layer) layer.remove();
+  layer = L.geoJSON(data.map_geojson, {
+    pointToLayer: (f, ll) => L.marker(ll).bindPopup(f.properties.name
+      ? `${f.properties.name}<br>$${f.properties.price_per_gallon}/gal` : f.properties.kind),
+  }).addTo(map);
+  map.fitBounds(layer.getBounds());
+  const s = data.fuel_summary;
+  summary.textContent = `${data.route.distance_miles} miles, ${data.fuel_stops.length} fuel stop(s), ` +
+    `${s.total_gallons} gal, total fuel cost $${s.total_fuel_cost}`;
+};
+</script>
+</body>
+</html>
