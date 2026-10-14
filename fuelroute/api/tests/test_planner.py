@@ -1,5 +1,7 @@
 from unittest import mock
 
+import random
+
 import numpy as np
 from django.test import SimpleTestCase
 
@@ -65,3 +67,52 @@ class PlanFuelTests(SimpleTestCase):
     def test_total_cost_is_sum_of_purchases(self):
         p = plan([station(m, 3.0 + (m % 5) * 0.2) for m in range(0, 1300, 80)], 1300)
         self.assertAlmostEqual(p.total_cost, sum(x.gallons * x.price for x in p.purchases), places=6)
+
+
+def cheapest_by_search(stations, total, max_range, first_price):
+    """Brute force: best cost over every way of buying fuel, in whole miles."""
+    nodes = {0: first_price}
+    for st in stations:
+        nodes[int(round(float(st.station_id)))] = st.price
+    nodes = {m: p for m, p in nodes.items() if 0 < m < total or m == 0}
+    best = {(0, 0): 0.0}  # (position, miles of fuel in tank) -> cost per mile of fuel
+    stops = sorted(nodes)
+    for pos in stops:
+        for fuel in range(max_range + 1):
+            cost = best.get((pos, fuel))
+            if cost is None:
+                continue
+            # buy any amount here
+            for extra in range(0, max_range - fuel + 1):
+                nf = fuel + extra
+                c = cost + extra * nodes[pos]
+                nxt = next((m for m in stops if m > pos), total)
+                gap = nxt - pos
+                if nf < gap:
+                    continue
+                key = (nxt, nf - gap)
+                if key not in best or c < best[key]:
+                    best[key] = c
+    return min(c for (pos, _), c in best.items() if pos == total) / 10
+
+
+class OptimalityTests(SimpleTestCase):
+    def test_takes_slightly_cheaper_station_ahead(self):
+        # 400 mile trip: 10 gal at 3.00 + 30 gal at 2.96 = 118.80.
+        # An earlier version ignored savings under 5 cents and paid 120.00.
+        p = plan([station(5, 3.00), station(100, 2.96)], 400)
+        self.assertLess(p.total_cost, 119.0)
+
+    def test_matches_brute_force_on_random_roads(self):
+        rng = random.Random(7)
+        for _ in range(25):
+            total = rng.choice([700, 900, 1100])
+            miles = sorted(rng.sample(range(5, total - 5, 5), 7))
+            stations = [station(m, round(rng.uniform(2.8, 3.8), 2)) for m in miles]
+            if miles[0] > 100 or any(b - a > 470 for a, b in zip([0] + miles, miles + [total])):
+                continue
+            p = plan(stations, total)
+            first = min(s.price for s in stations if float(s.station_id) <= 100)
+            expected = cheapest_by_search(stations, total, 475, first)
+            # positions are snapped to ~1 mile route points, so allow a few cents of slack
+            self.assertAlmostEqual(p.total_cost, expected, delta=0.5)
