@@ -8,7 +8,6 @@ from api.exceptions import RoutingError
 from .stations import Station, load_stations, station_coords
 
 MILES_PER_DEG = 69.0
-MIN_SAVING = 0.05  # $/gal, a stop for less than this isn't worth the detour
 
 
 @dataclass
@@ -122,7 +121,7 @@ def greedy_plan(candidates: list[Candidate], total_miles: float, max_range: floa
         if not reachable:
             raise RoutingError(f"no fuel station within {max_range:.0f} miles after mile {pos[i]:.0f}")
 
-        cheaper = next((j for j in reachable if j < last and price[j] < price[i] - MIN_SAVING), None)
+        cheaper = next((j for j in reachable if j < last and price[j] < price[i]), None)
         if pos[last] - pos[i] <= max_range and (cheaper is None or pos[last] < pos[cheaper]):
             nxt = last
             buy = max(0.0, pos[last] - pos[i] - fuel)
