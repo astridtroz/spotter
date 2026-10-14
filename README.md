@@ -109,13 +109,13 @@ The planner assumes an empty tank at the start and 475 usable miles per tank
 
 - If a cheaper station is reachable on the fuel in the tank plus a fill, buy
   only enough fuel to get there.
-- A station only counts as "cheaper" if it saves at least 5 cents a gallon (`MIN_SAVING` in `fuel_planner.py`), so we don't make a stop for a tiny difference.
 - If no cheaper station is in range, fill the tank and drive to the cheapest
   station in range.
 - If the finish is in range, buy only what is needed to arrive.
 
-This is the standard greedy solution to the "gas station problem" and gives
-the minimum fuel cost for the stations considered. Buying just enough before a
+This is the standard greedy solution to the "gas station problem". For a given
+set of stations, a 475 mile usable range and the start price below, it gives the
+lowest possible fuel cost (the tests check it against a brute-force search). Buying just enough before a
 cheaper station is what makes it cheaper than "fill up every 500 miles".
 
 The first tank is priced as a fill at the start. There is no station at the
